@@ -17,11 +17,70 @@ function updateThisWeekLabel() {
   el.textContent = `今週の週番号: ${w}`;
 }
 
+function getCommonTimes() {
+  return JSON.parse(localStorage.getItem('commonTimes') || '{}');
+}
+
+function saveCommonTimes(times) {
+  localStorage.setItem('commonTimes', JSON.stringify(times));
+}
+
+function renderCommonTimeInputs() {
+  const container = document.getElementById('common-time-grid');
+  container.innerHTML = '';
+  for (let period = 1; period <= 7; period++) {
+    const box = document.createElement('div');
+    box.className = 'common-time-box';
+    box.innerHTML = `
+      <label>${period}限<br>
+        <input type="time" id="common-time-${period}" data-period="${period}">
+      </label>
+    `;
+    container.appendChild(box);
+  }
+}
+
+function restoreCommonTimes() {
+  const times = getCommonTimes();
+  for (let period = 1; period <= 7; period++) {
+    const el = document.getElementById(`common-time-${period}`);
+    if (!el) continue;
+    const saved = times[period];
+    if (saved && saved.hour !== undefined && saved.minute !== undefined) {
+      el.value = `${String(saved.hour).padStart(2, '0')}:${String(saved.minute).padStart(2, '0')}`;
+    }
+  }
+}
+
+function applyCommonTimesToCells() {
+  const times = getCommonTimes();
+  document.querySelectorAll('.start').forEach(startEl => {
+    const period = Number(startEl.dataset.period);
+    const saved = times[period];
+    if (saved && saved.hour !== undefined && saved.minute !== undefined) {
+      startEl.value = `${String(saved.hour).padStart(2, '0')}:${String(saved.minute).padStart(2, '0')}`;
+    }
+  });
+}
+
 // enabled weeks 表示更新
 function renderEnabledWeeks() {
   const el = document.getElementById('enabled-weeks');
   const arr = JSON.parse(localStorage.getItem('satEnabledWeeks') || '[]');
   el.textContent = arr.length ? arr.join(', ') : 'なし';
+}
+
+function showStatus(message, type = 'info') {
+  const el = document.getElementById('status-message');
+  if (!el) return;
+  el.textContent = message;
+  el.className = `status-message show ${type}`;
+  if (window._statusTimeout) {
+    clearTimeout(window._statusTimeout);
+  }
+  window._statusTimeout = setTimeout(() => {
+    el.className = 'status-message';
+  }, 5000);
 }
 
 // 保存処理
@@ -31,6 +90,7 @@ document.getElementById('save').addEventListener('click', () => {
   const starts = document.querySelectorAll('.start');
 
   const data = [];
+  const commonTimes = getCommonTimes();
 
   subjects.forEach((sub, i) => {
     const item = items[i];
@@ -43,12 +103,15 @@ document.getElementById('save').addEventListener('click', () => {
     const day = Number(sub.dataset.day); // 1=Mon ... 6=Sat
     const period = Number(sub.dataset.period);
 
-    // 時刻が未入力ならデフォルトを設定（例: 1限 8:30）
+    // 時刻が未入力ならデフォルトか共通時刻を設定
     let hour = 8, minute = 30;
     if (time.value) {
       const parts = time.value.split(':');
       hour = Number(parts[0]);
       minute = Number(parts[1]);
+    } else if (commonTimes[period]) {
+      hour = commonTimes[period].hour;
+      minute = commonTimes[period].minute;
     }
 
     data.push({
@@ -62,13 +125,15 @@ document.getElementById('save').addEventListener('click', () => {
   });
 
   localStorage.setItem('timetable', JSON.stringify(data));
-  alert('保存しました');
+  showStatus('保存しました', 'success');
 });
 
 // 復元処理
 window.addEventListener('load', () => {
   updateThisWeekLabel();
   renderEnabledWeeks();
+  renderCommonTimeInputs();
+  restoreCommonTimes();
 
   const saved = JSON.parse(localStorage.getItem('timetable') || '[]');
 
@@ -78,7 +143,33 @@ window.addEventListener('load', () => {
     const startEl = document.querySelector(`.start[data-day="${item.day}"][data-period="${item.period}"]`);
     if (subjEl) subjEl.value = item.subject;
     if (itemsEl) itemsEl.value = item.items || '';
-    if (startEl) startEl.value = `${String(item.hour).padStart(2,'0')}:${String(item.minute).padStart(2,'0')}`;
+    if (startEl) {
+      if (item.hour !== undefined && item.minute !== undefined) {
+        startEl.value = `${String(item.hour).padStart(2,'0')}:${String(item.minute).padStart(2,'0')}`;
+      } else {
+        const common = getCommonTimes()[item.period];
+        if (common) {
+          startEl.value = `${String(common.hour).padStart(2,'0')}:${String(common.minute).padStart(2,'0')}`;
+        }
+      }
+    }
+  });
+
+  document.getElementById('apply-common-times').addEventListener('click', () => {
+    applyCommonTimesToCells();
+    showStatus('共通時刻を全曜日に反映しました', 'success');
+  });
+
+  document.getElementById('save-common-times').addEventListener('click', () => {
+    const times = {};
+    for (let period = 1; period <= 7; period++) {
+      const el = document.getElementById(`common-time-${period}`);
+      if (!el || !el.value) continue;
+      const [hour, minute] = el.value.split(':').map(Number);
+      times[period] = { hour, minute };
+    }
+    saveCommonTimes(times);
+    showStatus('共通時刻を保存しました', 'success');
   });
 
   // 今週の土曜有無チェックを復元
@@ -127,14 +218,14 @@ window.addEventListener('load', () => {
 document.getElementById('notify').addEventListener('click', async () => {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    alert('通知が許可されていません');
+    showStatus('通知が許可されていません', 'error');
     return;
   }
 
   // 既存タイマーをクリアして再設定
   clearScheduledTimers();
   scheduleAllNotifications();
-  alert('通知を設定しました（5分前に通知されます）');
+  showStatus('通知を設定しました（5分前に通知されます）', 'success');
 });
 
 // 全通知クリア（タイマーとServiceWorkerの通知タグは別）
@@ -145,7 +236,7 @@ document.getElementById('clear').addEventListener('click', async () => {
     const reg = await navigator.serviceWorker.ready;
     reg.getNotifications().then(notifs => notifs.forEach(n => n.close()));
   }
-  alert('ローカルのスケジュールをクリアしました');
+  showStatus('ローカルのスケジュールをクリアしました', 'success');
 });
 
 // タイマーをクリアする
@@ -164,10 +255,12 @@ function clearScheduledTimers() {
 document.getElementById('export').addEventListener('click', () => {
   const timetable = JSON.parse(localStorage.getItem('timetable') || '[]');
   const satWeeks = JSON.parse(localStorage.getItem('satEnabledWeeks') || '[]');
+  const commonTimes = getCommonTimes();
 
   const data = {
     timetable,
-    satEnabledWeeks: satWeeks
+    satEnabledWeeks: satWeeks,
+    commonTimes
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -192,21 +285,22 @@ document.getElementById('import').addEventListener('change', async (e) => {
   try {
     data = JSON.parse(text);
   } catch {
-    alert('JSONファイルが壊れています');
+    showStatus('JSONファイルが壊れています', 'error');
     return;
   }
 
-  if (!data.timetable || !data.satEnabledWeeks) {
-    alert('このファイルは正しいバックアップではありません');
+  if (!data.timetable || !data.satEnabledWeeks || !data.commonTimes) {
+    showStatus('このファイルは正しいバックアップではありません', 'error');
     return;
   }
 
   // 保存
   localStorage.setItem('timetable', JSON.stringify(data.timetable));
   localStorage.setItem('satEnabledWeeks', JSON.stringify(data.satEnabledWeeks));
+  localStorage.setItem('commonTimes', JSON.stringify(data.commonTimes));
 
-  alert('インポート完了！ページを再読み込みします');
-  location.reload();
+  showStatus('インポート完了！ページを再読み込みします', 'success');
+  setTimeout(() => location.reload(), 700);
 });
 
 // 通知スケジューラー（n分前通知、土曜は有効週のみ）

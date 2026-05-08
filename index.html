@@ -15,6 +15,17 @@
   平日は1〜7限、土曜は1〜4限を入力できます。空欄は保存・通知されません。
 </div>
 
+<div class="section">
+  <h2>時間割時刻の共通設定</h2>
+  <div class="common-time-grid" id="common-time-grid"></div>
+  <div class="controls">
+    <button id="apply-common-times">全曜日に反映</button>
+    <button id="save-common-times">共通時刻を保存</button>
+  </div>
+  <div id="status-message" class="status-message"></div>
+  <div class="small">ここで設定した時刻は、時間割の各曜日の時刻欄にコピーできます。</div>
+</div>
+
 <!-- 時間割テーブル -->
 <div class="section">
   <h2>時間割入力</h2>
@@ -51,7 +62,8 @@
     <button id="notify">通知を設定（10分前）</button>
     <button id="clear">全通知クリア</button>
     <button id="export">時間割をエクスポート</button>
-    <input type="file" id="import" accept="application/json">
+    <label class="file-label" for="import">JSONをインポート</label>
+    <input type="file" id="import" accept="application/json" class="file-input">
     <div class="small">※ 通知はブラウザの許可が必要です</div>
   </div>
 </div>
@@ -65,14 +77,14 @@
     <div class="small" id="this-week-label"></div>
   </div>
 
-  <div style="margin-top:8px;">
-    <label class="small">手動で週番号を追加/削除（カンマ区切り）</label><br>
+  <div class="section-gap">
+    <label class="small">手動で週番号を追加/削除（カンマ区切り）</label>
     <input type="text" id="week-input" placeholder="例: 18,20,22">
     <button id="add-weeks">追加</button>
     <button id="remove-weeks">削除</button>
   </div>
 
-  <div style="margin-top:8px;">
+  <div class="section-gap">
     <div class="small">現在有効な土曜授業の週番号：</div>
     <div class="week-list" id="enabled-weeks"></div>
   </div>
