@@ -1,6 +1,21 @@
 // app.js
 // 保存・復元・通知スケジューリング（5分前）・土曜週管理（統合版）
 
+const firebaseConfig = {
+  apiKey: "AIzaSyAn8XCl03auNfFkAsPlc_ubb0zYV1rt9HY",
+  authDomain: "hal-school.firebaseapp.com",
+  projectId: "hal-school",
+  storageBucket: "hal-school.firebasestorage.app",
+  messagingSenderId: "410513578078",
+  appId: "1:410513578078:web:2a32bb1b0d019cdebf3ccf",
+};
+
+// Firebaseの開始
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const messaging = firebase.messaging();
+// ==================================
+
 // グローバルでタイマーを管理して再設定時にクリアできるようにする
 window._scheduledTimers = window._scheduledTimers || { timeouts: [], intervals: [] };
 
