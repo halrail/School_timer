@@ -1,3 +1,18 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyAn8XCl03auNfFkAsPlc_ubb0zYV1rt9HY",
+  authDomain: "hal-school.firebaseapp.com",
+  projectId: "hal-school",
+  storageBucket: "hal-school.firebasestorage.app",
+  messagingSenderId: "410513578078",
+  appId: "1:410513578078:web:2a32bb1b0d019cdebf3ccf",
+};
+
+// Firebaseの開始
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const messaging = firebase.messaging();
+// ==================================
+
 // --- キャッシュ設定 ---
 const CACHE_NAME = 'timetable-cache-v1';
 const FILES_TO_CACHE = [
