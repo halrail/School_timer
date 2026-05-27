@@ -230,8 +230,8 @@ window.addEventListener('load', () => {
 });
 
 // 通知許可とFirebaseトークンの取得・保存
+
 document.getElementById('notify').addEventListener('click', async () => {
-  // 1. まずブラウザに通知の許可をもらう
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
     showStatus('通知が許可されていません', 'error');
@@ -239,25 +239,30 @@ document.getElementById('notify').addEventListener('click', async () => {
   }
 
   try {
-    // 2. あなたのFirebase「ウェブプッシュ証明書」の鍵（VAPIDキー）を使って、このスマホ専用のトークン（宛先）を取得
-    const currentToken = await messaging.getToken({ vapidKey: 'BGO3oiMkGUdJWwFxyEmgsSBgmDJPURLSHpv0rkpS6x3ig1XMszSjyjYU3Cwv4AiNpL7MX2RQjR9wWCkNJOv7rk0' });
+    // 1. まず、正しい場所にあるサービスワーカーを手動で登録する
+    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', {
+      scope: './firebase-cloud-messaging-push-scope'
+    });
+    console.log('サービスワーカーを登録しました:', registration);
+
+    // 2. トークンを取得する際、上で登録したregistrationをFirebaseに渡す
+    const currentToken = await messaging.getToken({ 
+      vapidKey: 'あなたのVAPIDキー',
+      serviceWorkerRegistration: registration // ←ここが超重要！
+    });
     
     if (currentToken) {
       console.log('トークンを取得しました:', currentToken);
 
-      // 3. データベース（Firestore）の "users" という場所にトークンを保存する
-      // ここでは仮に 'my_pwa_user' というIDで保存します
       await db.collection('users').doc('my_pwa_user').set({
         token: currentToken,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // 既存のタイマーをクリア（Firebaseから送るので画面側のタイマーは不要になります）
       clearScheduledTimers();
-      
       showStatus('通知を設定しました！サーバーから自動通知されます。', 'success');
     } else {
-      showStatus('トークンの取得に失敗しました。通知の権限を確認してください。', 'error');
+      showStatus('トークンの取得に失敗しました。', 'error');
     }
   } catch (error) {
     console.error('エラーが発生しました:', error);
